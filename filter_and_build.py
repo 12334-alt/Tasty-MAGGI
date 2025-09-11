@@ -45,22 +45,9 @@ class Book:
             for bm in pos.moves.values():
                 bm.weight = max(1, int(bm.weight / s * MAX_BOOK_WEIGHT))
 
-    def keep_only_most_common_first(self):
-        """Filter: only the most frequent first move survives in startpos."""
-        board = chess.variant.AntichessBoard()
-        start_key = key_hex(board)
-        if start_key not in self.positions:
-            return
-        pos = self.positions[start_key]
-        if not pos.moves:
-            return
-        # Pick move with max weight
-        best = max(pos.moves.items(), key=lambda kv: kv[1].weight)
-        self.positions[start_key] = BookPosition()
-        self.positions[start_key].moves[best[0]] = best[1]
-
     def save_polyglot(self, path: str):
         entries = []
+        total_moves = 0
         for key_hex, pos in self.positions.items():
             zbytes = bytes.fromhex(key_hex)
             for bm in pos.moves.values():
@@ -76,11 +63,20 @@ class Book:
                 wbytes = min(MAX_BOOK_WEIGHT, bm.weight).to_bytes(2, "big")
                 lbytes = (0).to_bytes(4, "big")
                 entries.append(zbytes + mbytes + wbytes + lbytes)
+                total_moves += 1
         entries.sort(key=lambda e: (e[:8], e[10:12]))
         with open(path, "wb") as f:
             for e in entries:
                 f.write(e)
-        print(f"Saved {len(entries)} moves to book: {path}")
+        print(f"Saved {total_moves} moves to book: {path}")
+
+    def print_all_moves(self):
+        for key_hex, pos in self.positions.items():
+            board = chess.variant.AntichessBoard()
+            for m in pos.moves.values():
+                if m.move:
+                    san = board.san(m.move)
+                    print(f"{san} | {m.move.uci()} | {m.weight}")
 
 
 def key_hex(board: chess.Board) -> str:
@@ -118,6 +114,9 @@ def build_book(bin_path: str):
             continue
         if white_elo < MIN_RATING or black_elo < MIN_RATING:
             continue
+        first_move = next(game.mainline_moves(), None)
+        if first_move is None or first_move.uci() != "e2e3":
+            continue
         kept += 1
         board = chess.variant.AntichessBoard()
         result = game.headers.get("Result", "")
@@ -151,11 +150,11 @@ def build_book(bin_path: str):
             print(f"Processed {processed} games")
     print(f"Parsed {processed} PGNs, kept {kept} games")
     book.normalize()
-    book.keep_only_most_common_first()   # <- force only best move at start
     for pos in book.positions.values():
         for bm in pos.moves.values():
             bm.weight = min(MAX_BOOK_WEIGHT, bm.weight + random.randint(0, 2))
     book.save_polyglot(bin_path)
+    book.print_all_moves()
 
 
 if __name__ == "__main__":
