@@ -90,11 +90,9 @@ def build_book(bin_path: str):
         game = chess.pgn.read_game(stream)
         if game is None:
             break
-
         variant_tag = (game.headers.get("Variant", "") or "").lower().replace(" ", "")
         if VARIANT not in variant_tag:
             continue
-
         white = game.headers.get("White", "")
         black = game.headers.get("Black", "")
         if white not in ALLOWED_BOTS:
@@ -105,7 +103,6 @@ def build_book(bin_path: str):
             black_elo = int(game.headers.get("BlackElo", 0))
         except ValueError:
             continue
-
         if white_elo < MIN_RATING or black_elo < MIN_RATING:
             continue
 
@@ -143,7 +140,6 @@ def build_book(bin_path: str):
                 board.push(move)
             except Exception:
                 break
-
         processed += 1
         if processed % 50 == 0:
             print(f"Processed {processed} games")
