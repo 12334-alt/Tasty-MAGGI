@@ -15,12 +15,10 @@ BOOK_OUTPUT = "anti_white.bin"
 TOURNAMENT_ID = "5sx9Kyda"
 ALLOWED_BOTS = {"NecroMindX", "TacticalBot", "ToromBot", "Exogenetic-Bot"}
 
-
 class BookMove:
     def __init__(self):
         self.weight = 0
         self.move: chess.Move | None = None
-
 
 class BookPosition:
     def __init__(self):
@@ -28,7 +26,6 @@ class BookPosition:
 
     def get_move(self, uci: str) -> BookMove:
         return self.moves.setdefault(uci, BookMove())
-
 
 class Book:
     def __init__(self):
@@ -47,7 +44,6 @@ class Book:
 
     def save_polyglot(self, path: str):
         entries = []
-        total_moves = 0
         for key_hex, pos in self.positions.items():
             zbytes = bytes.fromhex(key_hex)
             for bm in pos.moves.values():
@@ -63,25 +59,13 @@ class Book:
                 wbytes = min(MAX_BOOK_WEIGHT, bm.weight).to_bytes(2, "big")
                 lbytes = (0).to_bytes(4, "big")
                 entries.append(zbytes + mbytes + wbytes + lbytes)
-                total_moves += 1
         entries.sort(key=lambda e: (e[:8], e[10:12]))
         with open(path, "wb") as f:
             for e in entries:
                 f.write(e)
-        print(f"Saved {total_moves} moves to book: {path}")
-
-    def print_all_moves(self):
-        for key_hex, pos in self.positions.items():
-            board = chess.variant.AntichessBoard()
-            for m in pos.moves.values():
-                if m.move:
-                    san = board.san(m.move)
-                    print(f"{san} | {m.move.uci()} | {m.weight}")
-
 
 def key_hex(board: chess.Board) -> str:
     return f"{chess.polyglot.zobrist_hash(board):016x}"
-
 
 def fetch_tournament_games(tour_id: str, max_games: int = 5000):
     url = f"https://lichess.org/api/tournament/{tour_id}/games"
@@ -91,34 +75,41 @@ def fetch_tournament_games(tour_id: str, max_games: int = 5000):
     resp.raise_for_status()
     return io.StringIO(resp.text)
 
-
 def build_book(bin_path: str):
     book = Book()
     stream = fetch_tournament_games(TOURNAMENT_ID)
     processed = kept = 0
+
     while True:
         game = chess.pgn.read_game(stream)
         if game is None:
             break
+
         variant_tag = (game.headers.get("Variant", "") or "").lower().replace(" ", "")
         if VARIANT not in variant_tag:
             continue
+
         white = game.headers.get("White", "")
         black = game.headers.get("Black", "")
         if white not in ALLOWED_BOTS:
             continue
+
         try:
             white_elo = int(game.headers.get("WhiteElo", 0))
             black_elo = int(game.headers.get("BlackElo", 0))
         except ValueError:
             continue
+
         if white_elo < MIN_RATING or black_elo < MIN_RATING:
             continue
-        first_move = next(game.mainline_moves(), None)
-        if first_move is None or first_move.uci() != "e2e3":
+
+        moves = list(game.mainline_moves())
+        if not moves or moves[0].uci() != "e2e3":
             continue
+
         kept += 1
         board = chess.variant.AntichessBoard()
+
         result = game.headers.get("Result", "")
         if result == "1-0":
             winner = chess.WHITE
@@ -126,7 +117,8 @@ def build_book(bin_path: str):
             winner = chess.BLACK
         else:
             winner = None
-        for ply, move in enumerate(game.mainline_moves()):
+
+        for ply, move in enumerate(moves):
             if ply >= MAX_PLY:
                 break
             try:
@@ -145,17 +137,21 @@ def build_book(bin_path: str):
                 board.push(move)
             except Exception:
                 break
+
         processed += 1
         if processed % 50 == 0:
             print(f"Processed {processed} games")
+
     print(f"Parsed {processed} PGNs, kept {kept} games")
     book.normalize()
     for pos in book.positions.values():
         for bm in pos.moves.values():
             bm.weight = min(MAX_BOOK_WEIGHT, bm.weight + random.randint(0, 2))
     book.save_polyglot(bin_path)
-    book.print_all_moves()
 
+    for pos_key, pos in book.positions.items():
+        for bm in pos.moves.values():
+            print(board.san(bm.move), bm.move.uci(), bm.weight)
 
 if __name__ == "__main__":
     build_book(BOOK_OUTPUT)
