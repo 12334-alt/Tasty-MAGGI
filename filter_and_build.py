@@ -15,10 +15,12 @@ BOOK_OUTPUT = "anti_white.bin"
 TOURNAMENT_ID = "5sx9Kyda"
 ALLOWED_BOTS = {"NecroMindX", "TacticalBot", "ToromBot", "Exogenetic-Bot"}
 
+
 class BookMove:
     def __init__(self):
         self.weight = 0
         self.move: chess.Move | None = None
+
 
 class BookPosition:
     def __init__(self):
@@ -26,6 +28,7 @@ class BookPosition:
 
     def get_move(self, uci: str) -> BookMove:
         return self.moves.setdefault(uci, BookMove())
+
 
 class Book:
     def __init__(self):
@@ -63,9 +66,12 @@ class Book:
         with open(path, "wb") as f:
             for e in entries:
                 f.write(e)
+        print(f"Saved {len(entries)} moves to book: {path}")
+
 
 def key_hex(board: chess.Board) -> str:
     return f"{chess.polyglot.zobrist_hash(board):016x}"
+
 
 def fetch_tournament_games(tour_id: str, max_games: int = 5000):
     url = f"https://lichess.org/api/tournament/{tour_id}/games"
@@ -75,11 +81,11 @@ def fetch_tournament_games(tour_id: str, max_games: int = 5000):
     resp.raise_for_status()
     return io.StringIO(resp.text)
 
+
 def build_book(bin_path: str):
     book = Book()
     stream = fetch_tournament_games(TOURNAMENT_ID)
     processed = kept = 0
-
     while True:
         game = chess.pgn.read_game(stream)
         if game is None:
@@ -103,8 +109,8 @@ def build_book(bin_path: str):
         if white_elo < MIN_RATING or black_elo < MIN_RATING:
             continue
 
-        moves = list(game.mainline_moves())
-        if not moves or moves[0].uci() != "e2e3":
+        mainline_moves = list(game.mainline_moves())
+        if not mainline_moves or mainline_moves[0].uci() != "e2e3":
             continue
 
         kept += 1
@@ -118,7 +124,7 @@ def build_book(bin_path: str):
         else:
             winner = None
 
-        for ply, move in enumerate(moves):
+        for ply, move in enumerate(mainline_moves):
             if ply >= MAX_PLY:
                 break
             try:
@@ -151,7 +157,9 @@ def build_book(bin_path: str):
 
     for pos_key, pos in book.positions.items():
         for bm in pos.moves.values():
-            print(board.san(bm.move), bm.move.uci(), bm.weight)
+            if bm.move:
+                print(bm.move.uci(), bm.weight)
+
 
 if __name__ == "__main__":
     build_book(BOOK_OUTPUT)
