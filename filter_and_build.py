@@ -6,10 +6,10 @@ import chess.pgn
 import chess.polyglot
 import chess.variant
 
-VARIANT = "antichess"
+VARIANT = "three-check"         # must match how Lichess writes it
 MAX_PLY = 40
 MAX_BOOK_WEIGHT = 2520
-MIN_RATING = 2730
+MIN_RATING = 2330
 
 BOOK_OUTPUT = "anti_white.bin"
 TOURNAMENT_ID = "5sx9Kyda"
@@ -90,12 +90,12 @@ def build_book(bin_path: str):
         game = chess.pgn.read_game(stream)
         if game is None:
             break
-        variant_tag = (game.headers.get("Variant", "") or "").lower().replace(" ", "")
+        variant_tag = (game.headers.get("Variant", "") or "").lower()
         if VARIANT not in variant_tag:
             continue
         white = game.headers.get("White", "")
         black = game.headers.get("Black", "")
-        if white not in ALLOWED_BOTS:
+        if white not in ALLOWED_BOTS and black not in ALLOWED_BOTS:
             continue
 
         try:
