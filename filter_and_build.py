@@ -6,10 +6,10 @@ import chess.pgn
 import chess.polyglot
 import chess.variant
 
-VARIANT = "three-check"         # must match how Lichess writes it
-MAX_PLY = 40
+VARIANT = "antichess"         # must match how Lichess writes it
+MAX_PLY = 60
 MAX_BOOK_WEIGHT = 2520
-MIN_RATING = 2330
+MIN_RATING = 2730
 
 BOOK_OUTPUT = "anti_white.bin"
 TOURNAMENT_ID = "5sx9Kyda"
