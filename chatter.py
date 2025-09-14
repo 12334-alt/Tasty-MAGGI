@@ -131,13 +131,11 @@ class Chatter:
                     await self.api.send_chat_message(self.game_info.id_, chat_message.room, explanation)
                 else:
                     if chat_message.room == 'player':
-                        message = ('Supported commands: !cpu, !draw, !eval, !motor, !name, '
-                                   '!ping, !printeval, !ram, !roast, !destroy, !quotes. '
-                                   'Type !help <command> for more information.')
+                        message = ('Supported commands: !cpu, !draw, !eval, !motor, !name, !ping, !printeval, !ram, !takeback. '
+                                   'Type !help <command> for more information.')                    
                     else:
-                        message = ('Supported commands: !cpu, !draw, !eval, !motor, !name, '
-                                   '!ping, !printeval, !pv, !ram, !roast, !destroy, !quotes. '
-                                   'Type !help <command> for more information.')
+                        message = ('Supported commands: !cpu, !draw, !eval, !motor, !name, !ping, !printeval, !ram, !takeback. '
+                                   'Type !help <command> for more information.')  
                     await self.api.send_chat_message(self.game_info.id_, chat_message.room, message)
 
     async def _send_last_message(self, room: str) -> None:
