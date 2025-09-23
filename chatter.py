@@ -1,4 +1,5 @@
 import os
+import re
 import platform
 from collections import defaultdict
 import random
@@ -33,7 +34,7 @@ class Chatter:
         self.spectator_goodbye = self._format_message(config.messages.goodbye_spectators)
         self.print_eval_rooms: set[str] = set()
 
-    async def handle_chat_message(self, chatLine_Event: dict) -> None:
+    async def handle_chat_message(self, chatLine_Event: dict, takeback_count: int, max_takebacks: int) -> None:
         chat_message = Chat_Message.from_chatLine_event(chatLine_Event)
 
         if chat_message.username == 'lichess':
@@ -74,6 +75,13 @@ class Chatter:
 
         if self.spectator_goodbye:
             await self.api.send_chat_message(self.game_info.id_, 'spectator', self.spectator_goodbye)
+
+    async def send_abortion_message(self) -> None:
+        await self.api.send_chat_message(
+            self.game_info.id_,
+            "player",
+            ("Too bad you weren't there. Feel free to challenge me again, I will accept the challenge if possible."),
+        )
 
     async def _handle_command(self, chat_message: Chat_Message) -> None:
         text_body = chat_message.text[1:].strip()
@@ -159,13 +167,14 @@ class Chatter:
             )
             stdout, _ = await proc.communicate()
             output = stdout.decode()
-            for line in output.splitlines():
-                if "time=" in line.lower():
-                    return line.split("time=")[1].split()[0]
+
+            match = re.search(r'time[=<] ?(\d+\.?\d*)', output, re.IGNORECASE)
+            if match:
+                return f"{match.group(1)} ms"
             return "unknown"
         except Exception as e:
             return f"error: {e}"
-
+            
     def _get_cpu(self) -> str:
         cpu = ''
         if os.path.exists('/proc/cpuinfo'):
